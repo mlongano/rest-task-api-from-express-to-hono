@@ -96,10 +96,10 @@ initializeDatabase();
 const server = app.listen(PORT, HOST, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
-║                    Task API Server                     ║
+║                    Task API Server                    ║
 ╠═══════════════════════════════════════════════════════╣
-║  Status:      Running                                  ║
-║  URL:         http://${HOST}:${PORT.toString().padEnd(32)}║
+║  Status:      Running                                 ║
+║  URL:         http://${HOST}:${PORT.toString().padEnd(24)}║
 ║  Environment: ${NODE_ENV.padEnd(40)}║
 ║  Process ID:  ${process.pid.toString().padEnd(40)}║
 ╚═══════════════════════════════════════════════════════╝
