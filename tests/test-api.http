@@ -1,0 +1,418 @@
+# Task API Test Suite
+# This file tests all endpoints, validation, and error handling
+# Use with VS Code REST Client extension or similar
+
+###
+# @name baseURL
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+### Test root endpoint
+GET {{baseUrl}}/
+
+# ============================================================
+# CREATE TASK - POST /tasks
+# ============================================================
+
+### Create task - Success
+# @name createTaskSuccess
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Test Task",
+  "description": "This is a test task",
+  "priority": "high"
+}
+
+### Create task - Missing title (validation error)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "description": "Missing title"
+}
+
+### Create task - Empty title (validation error)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "",
+  "description": "Empty title"
+}
+
+### Create task - Title too long (validation error)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "This is a very long title that exceeds the maximum allowed length of 200 characters. This is a very long title that exceeds the maximum allowed length of 200 characters. This is a very long title that exceeds the maximum allowed length of 200 characters.",
+  "description": "Title too long"
+}
+
+### Create task - Invalid priority (validation error)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Test Task",
+  "priority": "invalid"
+}
+
+### Create task - Description too long (validation error)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Test Task",
+  "description": "This is a very long description that exceeds the maximum allowed length of 1000 characters. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. This is additional text to make sure it exceeds 1000 characters. More text here. And even more text here to ensure we go over the limit of 1000 characters in the description field."
+}
+
+### Create task - Valid minimal (only title)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Minimal Task"
+}
+
+# ============================================================
+# LIST TASKS - GET /tasks
+# ============================================================
+
+### Get all tasks
+GET {{baseUrl}}/tasks
+
+### Get tasks with filter - completed=true
+GET {{baseUrl}}/tasks?completed=true
+
+### Get tasks with filter - completed=false
+GET {{baseUrl}}/tasks?completed=false
+
+### Get tasks with filter - priority=high
+GET {{baseUrl}}/tasks?priority=high
+
+### Get tasks with filter - priority=medium
+GET {{baseUrl}}/tasks?priority=medium
+
+### Get tasks with filter - priority=low
+GET {{baseUrl}}/tasks?priority=low
+
+### Get tasks with pagination
+GET {{baseUrl}}/tasks?limit=5&offset=0
+
+### Get tasks - Invalid completed filter (validation error)
+GET {{baseUrl}}/tasks?completed=invalid
+
+### Get tasks - Invalid priority filter (validation error)
+GET {{baseUrl}}/tasks?priority=invalid
+
+### Get tasks - Invalid limit (validation error)
+GET {{baseUrl}}/tasks?limit=0
+
+### Get tasks - Limit too high (validation error)
+GET {{baseUrl}}/tasks?limit=101
+
+### Get tasks - Invalid offset (validation error)
+GET {{baseUrl}}/tasks?offset=-1
+
+### Get tasks - Combined filters
+GET {{baseUrl}}/tasks?completed=false&priority=high&limit=10&offset=0
+
+# ============================================================
+# GET SINGLE TASK - GET /tasks/:id
+# ============================================================
+
+### Get task by ID - Success
+# @name getTaskById
+GET {{baseUrl}}/tasks/1
+
+### Get task by ID - Invalid ID format (validation error)
+GET {{baseUrl}}/tasks/abc
+
+### Get task by ID - Negative ID (validation error)
+GET {{baseUrl}}/tasks/-1
+
+### Get task by ID - Not found (404 error)
+GET {{baseUrl}}/tasks/99999
+
+# ============================================================
+# UPDATE TASK - PUT /tasks/:id (Full Update)
+# ============================================================
+
+### Update task - Success (all fields)
+PUT {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": "Updated Task Title",
+  "description": "Updated description",
+  "completed": true,
+  "priority": "medium"
+}
+
+### Update task - Missing title (validation error)
+PUT {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "description": "Updated description",
+  "completed": true,
+  "priority": "medium"
+}
+
+### Update task - Missing completed (validation error)
+PUT {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": "Updated Task",
+  "description": "Updated description",
+  "priority": "medium"
+}
+
+### Update task - Missing priority (validation error)
+PUT {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": "Updated Task",
+  "description": "Updated description",
+  "completed": true
+}
+
+### Update task - Invalid ID (validation error)
+PUT {{baseUrl}}/tasks/abc
+Content-Type: {{contentType}}
+
+{
+  "title": "Updated Task",
+  "description": "Updated description",
+  "completed": true,
+  "priority": "medium"
+}
+
+### Update task - Task not found (404 error)
+PUT {{baseUrl}}/tasks/99999
+Content-Type: {{contentType}}
+
+{
+  "title": "Updated Task",
+  "description": "Updated description",
+  "completed": true,
+  "priority": "medium"
+}
+
+# ============================================================
+# PATCH TASK - PATCH /tasks/:id (Partial Update)
+# ============================================================
+
+### Patch task - Update only title
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": "Patched Title Only"
+}
+
+### Patch task - Update only completed status
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "completed": false
+}
+
+### Patch task - Update only priority
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "priority": "low"
+}
+
+### Patch task - Update description to null
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "description": null
+}
+
+### Patch task - Invalid ID (validation error)
+PATCH {{baseUrl}}/tasks/abc
+Content-Type: {{contentType}}
+
+{
+  "title": "Patched Task"
+}
+
+### Patch task - Invalid priority (validation error)
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "priority": "urgent"
+}
+
+### Patch task - Invalid completed type (validation error)
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "completed": "yes"
+}
+
+### Patch task - Empty title (validation error)
+PATCH {{baseUrl}}/tasks/1
+Content-Type: {{contentType}}
+
+{
+  "title": ""
+}
+
+### Patch task - Task not found (404 error)
+PATCH {{baseUrl}}/tasks/99999
+Content-Type: {{contentType}}
+
+{
+  "title": "Patched Task"
+}
+
+# ============================================================
+# DELETE TASK - DELETE /tasks/:id
+# ============================================================
+
+### Delete task - Invalid ID (validation error)
+DELETE {{baseUrl}}/tasks/abc
+
+### Delete task - Task not found (404 error)
+DELETE {{baseUrl}}/tasks/99999
+
+### Delete task - Success
+# Run this last to clean up
+DELETE {{baseUrl}}/tasks/1
+
+# ============================================================
+# ERROR HANDLING TESTS
+# ============================================================
+
+### Test 404 - Route not found
+GET {{baseUrl}}/nonexistent-route
+
+### Test 404 - Method not allowed (if applicable)
+POST {{baseUrl}}/tasks/1
+
+### Test invalid JSON (should be handled by Express JSON parser)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Invalid JSON
+  "description": "Missing closing brace"
+
+# ============================================================
+# EDGE CASES
+# ============================================================
+
+### Create task - Title with special characters
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Task with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?",
+  "description": "Testing special characters"
+}
+
+### Create task - Unicode characters
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "タスク 任务 Задача",
+  "description": "Testing unicode characters: 日本語 Русский"
+}
+
+### Create task - Title at max length (200 chars)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "This title is exactly 200 characters long. This title is exactly 200 characters long. This title is exactly 200 characters long. This title is exactly 200 characters long. This title is exactly 200 characters long. 12345678901234567890",
+  "description": "Title at maximum length"
+}
+
+### Create task - Description at max length (1000 chars)
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Max description test",
+  "description": "This description is exactly 1000 characters long. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur. Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur. At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat. End of description."
+}
+
+### Batch create - Create multiple tasks for pagination testing
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Task for pagination 1",
+  "priority": "low"
+}
+
+###
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Task for pagination 2",
+  "priority": "medium"
+}
+
+###
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Task for pagination 3",
+  "priority": "high"
+}
+
+###
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Task for pagination 4",
+  "priority": "low"
+}
+
+###
+POST {{baseUrl}}/tasks
+Content-Type: {{contentType}}
+
+{
+  "title": "Task for pagination 5",
+  "priority": "medium"
+}
+
+### Verify pagination
+GET {{baseUrl}}/tasks?limit=2&offset=0
+
+###
+GET {{baseUrl}}/tasks?limit=2&offset=2
+
+# ============================================================
+# CLEANUP - Delete all test tasks
+# ============================================================
+
+### Get all tasks to see what to delete
+GET {{baseUrl}}/tasks
+
+### Note: Add specific DELETE requests here based on IDs from the list above
+# DELETE {{baseUrl}}/tasks/{id}
