@@ -55,6 +55,158 @@ task-api/
 └── README.md
 ```
 
+## Architettura del Progetto
+
+### Layer Architecture
+
+Il progetto segue un'architettura a layer per mantenere la separazione delle responsabilità:
+
+```
+┌─────────────────────────────────────────┐
+│         Client (HTTP/cURL)              │
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│        app.js (Entry Point)             │
+│  - Middleware globali (Helmet, CORS,    │
+│    Morgan, body parser)                 │
+│  - Route registration                   │
+│  - Graceful shutdown                    │
+└──────────────────┬──────────────────────┘
+                   │
+        ┌──────────┴──────────┐
+        │                     │
+┌───────▼────────┐   ┌────────▼────────┐
+│  taskRoutes.js │   │   /health       │
+│  (Route Layer) │   │   Endpoints     │
+└───────┬────────┘   └─────────────────┘
+        │
+┌───────▼────────────────────────────────┐
+│      Middleware Pipeline               │
+│  1. Validation Middleware              │
+│     (validate.js)                      │
+│  2. Controller Functions               │
+│     (taskController.js)                │
+└───────┬────────────────────────────────┘
+        │
+┌───────▼────────────────────────────────┐
+│      Data Layer                        │
+│  - Database configuration              │
+│  - SQL prepared statements             │
+│  - Schema migrations                   │
+└────────────────────────────────────────┘
+```
+
+### Request Flow
+
+1. **Ingresso Richiesta**: La richiesta HTTP arriva al server Express
+2. **Global Middleware**:
+   - Helmet aggiunge security headers
+   - CORS valida origini cross-origin
+   - Morgan logga la richiesta
+   - Body parser parsifica JSON
+3. **Routing**: Express mappa l'URL al router appropriato
+4. **Validation**: `express-validator` valida input (body, params, query)
+5. **Controller**: La funzione controller esegue la logica business
+6. **Database**: Il controller interagisce con SQLite via `better-sqlite3`
+7. **Response**: Il controller invia la risposta JSON al client
+8. **Error Handling**: Se qualcosa va storto, l'errore viene propagato al `errorHandler`
+
+### Componenti Chiave
+
+#### app.js - Application Bootstrap
+
+- Configura middleware globali
+- Registra le route
+- Gestisce il lifecycle del server (startup, shutdown)
+- Implementa graceful shutdown per sicurezza
+- Health check endpoint per monitoring
+
+#### taskRoutes.js - Route Definitions
+
+- Definisce tutti gli endpoint REST
+- Collega validazione middleware ai controller
+- Organizza route per risorsa (tasks)
+- Segue convenzioni RESTful standard
+
+#### validate.js - Input Validation Layer
+
+- Middleware di validazione dichiarativa con `express-validator`
+- Regole separate per ogni endpoint
+- Centralizzato e riutilizzabile
+- Ritorna errori dettagliati con field specifici
+
+#### taskController.js - Business Logic Layer
+
+- Contiene tutta la logica di business
+- Gestisce CRUD operations
+- Implementa paginazione e filtri
+- Non contiene logica di routing
+- Delega errori al centralized error handler
+
+#### database.js - Data Access Layer
+
+- Configurazione SQLite con `better-sqlite3`
+- Synchronous API (non async) per semplicità
+- Setup iniziale schema e triggers
+- Gestisce connection pooling
+- Abilita WAL mode per performance
+
+#### errorHandler.js - Error Handling Layer
+
+- Centralizza gestione errori
+- Gestisce diversi tipi di errori (HTTP, SQLite, Validation)
+- Nasconde stack trace in produzione
+- Formatta risposte di errore consistenti
+
+### Data Model
+
+#### Tabella `tasks`
+
+```sql
+CREATE TABLE tasks (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  description TEXT,
+  completed   INTEGER DEFAULT 0,
+  priority    TEXT DEFAULT 'medium' CHECK(priority IN ('low', 'medium', 'high')),
+  created_at  TEXT DEFAULT (datetime('now')),
+  updated_at  TEXT DEFAULT (datetime('now'))
+)
+```
+
+**Note chiave**:
+
+- `completed` è stored come INTEGER (0/1) per SQLite
+- `priority` ha constraint CHECK per validità
+- Trigger automatico aggiorna `updated_at` on UPDATE
+- Timestamps in formato ISO8601 string
+
+### Security Architecture
+
+1. **Input Validation**: Tutti gli input validati prima del processing
+2. **SQL Injection Prevention**: Prepared statements per tutte le query
+3. **HTTP Headers**: Helmet per security headers (XSS, CSP, etc.)
+4. **CORS**: Configurabile per controllo origini
+5. **Body Size Limit**: 10KB limit per mitigare DoS
+6. **Non-root Container**: Docker container eseguito come utente non-root
+
+### Performance Considerations
+
+- **WAL Mode**: SQLite Write-Ahead Logging per concorrenza
+- **Prepared Statements**: Query caching per performance
+- **Synchronous Database**: better-sqlite3 più veloce di sqlite3 async
+- **Connection Reuse**: Singola connessione database riutilizzata
+- **Pagination**: Supporto nativo per query paginate
+
+### Scalabilità e Manutenibilità
+
+- **Separation of Concerns**: Ogni layer ha responsabilità chiara
+- **Middleware Chain**: Facile aggiungere nuovo middleware
+- **Validation Reuse**: Regole centralizzate e riutilizzabili
+- **Error Centralization**: Un solo punto di gestione errori
+- **Environment-based**: Configurazione via environment variables
+
 ## API Endpoints
 
 ### Health Check
@@ -64,6 +216,7 @@ GET /health
 ```
 
 Risposta:
+
 ```json
 {
   "status": "healthy",
@@ -94,6 +247,7 @@ GET /tasks?limit=10&offset=20
 | `offset` | integer | 0 | Skip per paginazione |
 
 **Risposta:**
+
 ```json
 {
   "data": [
@@ -227,6 +381,7 @@ npm start
 ## Best Practices Implementate
 
 ### Sicurezza
+
 - ✅ Helmet per HTTP security headers
 - ✅ CORS configurabile
 - ✅ Validazione input con express-validator
@@ -235,12 +390,14 @@ npm start
 - ✅ No-new-privileges in Docker
 
 ### Performance
+
 - ✅ Multi-stage Docker build
 - ✅ SQLite WAL mode per concorrenza
 - ✅ Layer caching ottimizzato nel Dockerfile
 - ✅ Limiti risorse nel Compose
 
 ### Affidabilità
+
 - ✅ Graceful shutdown
 - ✅ Health checks
 - ✅ Gestione errori centralizzata
@@ -248,6 +405,7 @@ npm start
 - ✅ Restart policy
 
 ### Developer Experience
+
 - ✅ Hot-reload con Docker Compose Watch
 - ✅ Variabili d'ambiente con .env
 - ✅ Codice organizzato per responsabilità
