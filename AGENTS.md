@@ -1,148 +1,191 @@
-# AGENTS.md - Task API
+# AGENTS.md - Task API Codebase Guide
 
-This file provides guidelines for agentic coding assistants working on this project.
-
-## Build/Lint/Commands
-
-```bash
-# Start server
-npm start
-
-# Development with hot-reload (uses --watch flag)
-npm run dev
-
-# Linting
-npm run lint          # Check for issues
-npm run lint:fix      # Auto-fix linting issues
-
-# Docker
-docker compose up -d           # Start in background
-docker compose down            # Stop
-docker compose down -v         # Stop + remove volumes (deletes database)
-docker compose logs -f api     # View logs
-docker compose watch           # Hot-reload in Docker
-```
-
-**Note**: No test framework is currently configured. When adding tests, use Jest or Mocha and add test scripts to package.json.
+This document provides essential information for AI coding agents working in this repository.
 
 ## Project Overview
 
-- **Stack**: Node.js 20+, Express 4, SQLite (better-sqlite3), Helmet, CORS, Morgan
-- **Language**: JavaScript (CommonJS - require/module.exports)
-- **API Style**: RESTful with JSON responses
-- **Database**: SQLite with better-sqlite3 (synchronous API)
+REST API for task management built with Hono, TypeScript, and SQLite. Uses Node.js native modules and requires Node.js 20+.
+
+## Commands
+
+### Development
+```bash
+npm run dev          # Start with hot-reload (tsx watch)
+npm start            # Production server (requires build first)
+```
+
+### Build
+```bash
+npm run build        # Compile TypeScript to dist/
+```
+
+### Linting & Type Checking
+```bash
+npm run lint         # Run ESLint on src/
+npm run lint:fix     # Auto-fix linting issues
+npm run typecheck    # Type check without emitting
+```
+
+### Testing
+No test framework is currently configured. If tests are added, update this section with:
+```bash
+npm test                    # Run all tests
+npm test -- path/to/test.ts # Run single test file
+```
+
+### Docker
+```bash
+docker compose up -d         # Start in background
+docker compose down          # Stop containers
+docker compose build --no-cache  # Rebuild image
+```
+
+## Project Structure
+
+```
+src/
+├── app.ts                 # Entry point, Hono setup, middleware
+├── config/
+│   └── database.ts        # SQLite configuration and initialization
+├── controllers/
+│   └── taskController.ts  # Business logic for CRUD operations
+├── middleware/
+│   ├── errorHandler.ts    # Centralized error handling
+│   └── validate.ts        # Zod validation schemas
+├── routes/
+│   └── taskRoutes.ts      # Route definitions
+└── types/
+    └── index.ts           # TypeScript type definitions
+```
 
 ## Code Style Guidelines
 
-### File Organization
-```
-src/
-├── app.js              # Entry point, middleware setup
-├── config/             # Configuration (database, etc.)
-├── controllers/        # Business logic
-├── middleware/         # Express middleware
-└── routes/            # Route definitions
-```
+### Module System
+- Use ES modules (`import`/`export`)
+- Use `.js` extension in imports for ESM compatibility (TypeScript requirement)
 
-### Import/Module System
-- Use CommonJS: `require()` and `module.exports`
-- Internal modules: `const { fn } = require('./relative/path')`
-- External packages: `const express = require('express')`
-- Destructure exports: `const { db, init } = require('./config/database')`
+### Import Order
+```typescript
+// 1. External packages first
+import { Hono } from 'hono';
+import { z } from 'zod';
+
+// 2. Node.js built-ins second
+import path from 'node:path';
+
+// 3. Internal modules third (with .js extension)
+import { db } from './config/database.js';
+import type { Task } from './types/index.js';
+```
 
 ### Naming Conventions
-- **Variables/Functions**: `camelCase` - `getAllTasks`, `const userId`
-- **Classes**: `PascalCase` - `class HttpError`
-- **Constants**: `UPPER_SNAKE_CASE` - `NODE_ENV`, `PORT`
-- **Database columns**: `snake_case` - `created_at`, `updated_at`
-- **File names**: `camelCase.js` - `taskController.js`, `errorHandler.js`
+| Type | Convention | Example |
+|------|------------|---------|
+| Functions | camelCase | `getAllTasks`, `createTask` |
+| Variables | camelCase | `dbPath`, `statusCode` |
+| Classes | PascalCase | `HttpError` |
+| Files | camelCase | `taskController.ts`, `errorHandler.ts` |
+| Constants | SCREAMING_SNAKE_CASE | `PORT`, `NODE_ENV` |
+| Types/Interfaces | PascalCase | `Task`, `ApiResponse` |
 
-### Function Structure
-```javascript
-/**
- * Brief description in Italian (matching existing code)
- * 
- * Additional context if needed
- */
-function functionName(req, res, next) {
-  try {
-    // Logic here
-    res.json({ data: result });
-  } catch (error) {
-    next(error); // Always pass to error handler
-  }
+### Function Declarations
+Use function declarations for exported functions:
+```typescript
+function getAllTasks(c: Context) {
+  // implementation
+}
+
+export { getAllTasks };
+```
+
+### Type Definitions
+Define types in `src/types/index.ts`. Use `type` for unions/primitives, `interface` for objects:
+```typescript
+export type Priority = 'low' | 'medium' | 'high';
+
+export interface Task {
+  id: number;
+  title: string;
+  // ...
 }
 ```
 
-### Response Format
-- **Success**: `{ data: <object> }` or `{ message: <string>, data: <object> }`
-- **Error**: `{ error: <string>, message: <string>, timestamp: <ISO8601> }`
-- **List with pagination**: `{ data: [], pagination: { total, limit, offset, hasMore } }`
-- **Delete**: `204 No Content` (no body)
-- **Create**: `201 Created` with created resource
-
-### HTTP Status Codes
-- `200` - OK
-- `201` - Created
-- `204` - No Content (DELETE)
-- `400` - Bad Request (validation errors)
-- `404` - Not Found
-- `500` - Internal Server Error
-
 ### Error Handling
-- Use try/catch in all controller functions
-- Pass errors to `next(error)` for centralized handling
-- Don't send responses directly in catch blocks
-- Error handler in `src/middleware/errorHandler.js` handles all errors
+- Use typed error responses with `ApiErrorResponse`
+- Throw `HttpError` for HTTP errors
+- Global error handler catches all errors
 
-### Validation
-- Use `express-validator` for input validation
-- Define validation rules in `src/middleware/validate.js`
-- Chain validation middleware before controllers
-- Format: `body('field').trim().notEmpty().withMessage('message')`
+### Response Format
+Success responses wrap data with typed generics:
+```typescript
+return c.json<ApiResponse<Task>>({ data: task });
+return c.json<ApiMessageResponse<Task>>({ message: 'Created', data: newTask }, 201);
+```
 
-### Database Operations
-- Use `better-sqlite3` (synchronous API, not async)
-- Prepared statements with named parameters: `db.prepare('SELECT * WHERE id = @id').get({ id })`
-- Query strings in template literals for readability
-- Boolean values stored as 0/1 in SQLite
+Error responses:
+```typescript
+return c.json<ApiErrorResponse>({
+  error: 'Not Found',
+  message: `Task with id ${id} not found`,
+  timestamp: new Date().toISOString()
+}, 404);
+```
 
-### Comments & Documentation
-- JSDoc-style comments for all exported functions
-- Italian descriptions (matching existing codebase)
-- Section comments with `=== SECTION NAME ===` for major blocks
-- Brief inline comments only when logic is non-obvious
+### Validation Pattern
+Use Zod schemas with validation middleware:
+```typescript
+export const createTaskSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  priority: z.enum(['low', 'medium', 'high']).optional()
+});
 
-### Middleware
-- Global middleware in `app.js` before routes
-- Route-specific middleware in route definitions
-- Error handler must be LAST middleware
-- Custom error classes extend `Error` with `statusCode`
+// In route:
+app.post('/', validateBody(createTaskSchema), createTask);
 
-### Security Best Practices
-- Always validate and sanitize input
-- Use prepared statements for SQL (no string concatenation)
-- Limit request body size (`express.json({ limit: '10kb' })`)
-- Helmet middleware enabled
-- CORS configured via `CORS_ORIGIN` env var
+// In controller:
+const input = c.get('validatedBody') as CreateTaskInput;
+```
+
+### Database Queries
+Use better-sqlite3 with typed results:
+```typescript
+const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+db.prepare('INSERT INTO tasks (title) VALUES (@title)').run({ title });
+```
+
+### Comments
+- JSDoc-style header comments at file top
+- Brief inline comments for complex logic
+- Comments may be in English or Italian (match existing style)
+
+### Hono Patterns
+- Create routers with `new Hono()`
+- Mount routers: `app.route('/tasks', tasks)`
+- Middleware order: security → logging → routes → 404 → error handler
 
 ### Environment Variables
-- Use `process.env.VAR || defaultValue` pattern
-- Document required variables in `.env.example`
-- Never commit `.env` file
-- Key variables: `NODE_ENV`, `PORT`, `HOST`, `DB_PATH`, `CORS_ORIGIN`
+- `PORT` - Server port (default: 3000)
+- `HOST` - Bind address (default: 0.0.0.0)
+- `NODE_ENV` - Environment (development/production)
+- `DB_PATH` - SQLite database path
+- `CORS_ORIGIN` - CORS origin setting
 
-### Git Conventions
-- No auto-commits unless explicitly requested
-- Check `git status` and `git diff` before committing
-- Write concise commit messages (1-2 sentences)
-- Follow existing commit message style
+## Security Practices
+- Use `secureHeaders()` middleware from Hono
+- Validate all input with Zod schemas
+- Use parameterized queries for SQL (prevent injection)
+- Use non-root user in Docker
 
-## When Editing Code
+## Adding New Features
 
-1. Read the file first before making changes
-2. Match existing code style exactly
-3. Follow the project structure (controllers, routes, middleware separation)
-4. Run `npm run lint` after changes
-5. Test changes manually if no test suite exists
-6. Check existing patterns before introducing new ones
+1. Add types in `src/types/index.ts`
+2. Create Zod schema in `src/middleware/validate.ts`
+3. Create controller function in `src/controllers/`
+4. Create route in `src/routes/` with validation middleware
+5. Update database schema in `src/config/database.ts` if needed
+
+## Run After Changes
+Always run type checking and linting after making changes:
+```bash
+npm run typecheck && npm run lint
+```
