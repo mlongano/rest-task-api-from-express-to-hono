@@ -50,13 +50,19 @@ task-api/
 │   │   └── taskRoutes.ts     # Endpoint REST
 │   ├── types/
 │   │   └── index.ts          # Definizioni di tipo centralizzate
-│   └── app.ts                # Entry point
+│   ├── createApp.ts          # App Factory (configurazione Hono)
+│   └── app.ts                # Entry point (server startup)
+├── tests/
+│   ├── setup.ts              # Test setup (DB in-memory)
+│   ├── tasks.test.ts         # Test suite automatizzati (Vitest)
+│   └── test-api.http         # Test manuali (REST Client / httpyac)
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── compose.yaml
 ├── Dockerfile
 ├── package.json
+├── vitest.config.ts
 ├── tsconfig.json
 └── README.md
 ```
@@ -120,13 +126,38 @@ Il progetto segue un'architettura a layer per mantenere la separazione delle res
 
 ### Componenti Chiave
 
-#### app.ts - Application Bootstrap
+#### createApp.ts - App Factory
 
-- Configura middleware globali (secureHeaders, CORS, logger, prettyJSON)
-- Registra le route
+La configurazione dell'applicazione Hono è estratta in una funzione factory `createApp()`, separata dall'avvio del server. Questo pattern (noto come **App Factory**) risolve un problema concreto: quando `app.ts` crea l'app e avvia il server nello stesso modulo, importare l'app per i test significa anche avviare il server, aprire porte e connettersi al database di produzione.
+
+Con la factory:
+
+- **Testabilità**: I test importano `createApp()` e ottengono un'istanza Hono isolata, senza avviare nessun server. Hono fornisce `app.request()` per simulare richieste HTTP direttamente in memoria.
+- **Isolamento**: Ogni test suite può creare la propria istanza dell'app, con un database in-memory separato, senza conflitti tra test.
+- **Separazione delle responsabilità**: `createApp.ts` si occupa solo della configurazione (middleware, route, error handling), mentre `app.ts` gestisce il lifecycle del server (listen, graceful shutdown, segnali di processo).
+
+```typescript
+// createApp.ts - solo configurazione
+export function createApp(): Hono { ... }
+
+// app.ts - solo server lifecycle
+import { createApp } from './createApp.js';
+const app = createApp();
+serve({ fetch: app.fetch, port: PORT });
+
+// tasks.test.ts - test senza server
+import { createApp } from '../src/createApp.js';
+const app = createApp();
+const res = await app.request('/tasks');
+```
+
+#### app.ts - Server Bootstrap
+
+- Importa l'app dalla factory `createApp()`
+- Inizializza il database
+- Avvia il server HTTP con `@hono/node-server`
 - Gestisce il lifecycle del server (startup, shutdown)
 - Implementa graceful shutdown per sicurezza
-- Health check endpoint per monitoring
 
 #### taskRoutes.ts - Route Definitions
 
@@ -385,6 +416,12 @@ npm start            # Produzione (richiede build)
 # Build
 npm run build        # Compila TypeScript in dist/
 
+# Test
+npm test             # Vitest (locale, DB in-memory)
+npm run test:watch   # Vitest in watch mode
+npm run test:docker  # Vitest in container Docker
+npm run test:http    # httpyac contro server attivo
+
 # Qualità
 npm run typecheck    # Type check senza emissione
 npm run lint         # Esegue ESLint
@@ -535,6 +572,9 @@ docker compose logs -f api
 # Sviluppo con hot-reload
 docker compose watch
 
+# Esegui test in container isolato (DB in-memory)
+docker compose run --rm test
+
 # Stop
 docker compose down
 
@@ -544,6 +584,24 @@ docker compose down -v
 # Rebuild immagine
 docker compose build --no-cache
 ```
+
+### Test in Docker
+
+Il Dockerfile include uno stage `test` dedicato che esegue i test Vitest in un container isolato con database in-memory. Questo garantisce che i test girino nello stesso ambiente del deployment, eliminando il classico problema "works on my machine".
+
+```bash
+# Esegui i test via compose (modo consigliato)
+npm run test:docker
+
+# Equivalente a:
+docker compose run --rm test
+
+# Oppure build diretto dello stage test
+docker build --target test -t task-api-test .
+docker run --rm task-api-test
+```
+
+Il servizio `test` usa un [profile](https://docs.docker.com/compose/profiles/) (`test`) per non avviarsi con `docker compose up`. Si attiva solo esplicitamente con `docker compose run --rm test`.
 
 ## Sviluppo Locale (senza Docker)
 
@@ -594,6 +652,13 @@ npm start
 - ✅ Health checks
 - ✅ Gestione errori centralizzata
 - ✅ Logging strutturato
+
+### Testing
+
+- ✅ Test automatizzati con Vitest (in-memory SQLite)
+- ✅ Test in Docker (stesso ambiente di produzione)
+- ✅ Test HTTP con httpyac (REST Client CLI)
+- ✅ App Factory pattern per testabilità
 
 ### Developer Experience
 
