@@ -9,12 +9,18 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
   },
-  "keywords": ["rest", "api", "express", "sqlite", "docker"],
+  "keywords": [
+    "rest",
+    "api",
+    "express",
+    "sqlite",
+    "docker"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
-    "better-sqlite3": "^9.4.3",
+    "better-sqlite3": "^12.5.0",
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
     "morgan": "^1.10.0",
