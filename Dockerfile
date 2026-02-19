@@ -20,7 +20,21 @@ COPY package.json ./
 # Installa TUTTE le dipendenze e genera il package-lock.json
 RUN npm install
 
-# === STAGE 2: Production Dependencies ===
+# === STAGE 2: Build ===
+# Compila il codice TypeScript a JavaScript
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+# Copia tutti i file necessari per la build
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json tsconfig.json ./
+COPY src ./src
+
+# Compila TypeScript -> JavaScript in dist/
+RUN npx tsc
+
+# === STAGE 3: Production Dependencies ===
 # Installa solo le dipendenze di produzione
 FROM node:24-alpine AS prod-deps
 
@@ -57,8 +71,8 @@ WORKDIR /app
 # Copia node_modules dalla stage prod-deps
 COPY --from=prod-deps /app/node_modules ./node_modules
 
-# Copia il codice sorgente
-COPY --chown=nodejs:nodejs src ./src
+# Copia il codice compilato dalla stage builder
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --chown=nodejs:nodejs package.json ./
 
 # Crea directory per il database con permessi corretti
@@ -86,4 +100,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Comando di default
-CMD ["node", "src/app.js"]
+CMD ["node", "dist/app.js"]
