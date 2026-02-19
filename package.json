@@ -9,25 +9,38 @@
     "dev": "tsx watch src/app.ts",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:docker": "docker compose run --rm test",
+    "test:http": "npx httpyac tests/test-api.http --all"
   },
-  "keywords": ["rest", "api", "hono", "typescript", "sqlite", "docker"],
+  "keywords": [
+    "rest",
+    "api",
+    "hono",
+    "typescript",
+    "sqlite",
+    "docker"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
     "better-sqlite3": "^12.5.0",
     "hono": "^4.6.0",
-    "@hono/node-server": "^1.13.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.0",
-    "typescript": "^5.5.0",
-    "tsx": "^4.16.0",
-    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
     "@typescript-eslint/parser": "^7.13.0",
-    "@typescript-eslint/eslint-plugin": "^7.13.0"
+    "eslint": "^8.57.0",
+    "httpyac": "^6.16.7",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=20.0.0"
