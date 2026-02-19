@@ -34,6 +34,26 @@ COPY src ./src
 # Compila TypeScript -> JavaScript in dist/
 RUN npx tsc
 
+# === STAGE: Test ===
+# Ambiente per eseguire i test automatizzati (Vitest)
+# Uso: docker build --target test -t task-api-test . && docker run --rm task-api-test
+# Oppure: docker compose run --rm test
+FROM node:24-alpine AS test
+
+WORKDIR /app
+
+# Copia tutte le dipendenze (dev incluse: vitest, tsx, etc.)
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json tsconfig.json vitest.config.ts ./
+COPY src ./src
+COPY tests ./tests
+
+# Database in-memory per i test, nessun file su disco
+ENV DB_PATH=:memory:
+ENV NODE_ENV=test
+
+CMD ["npx", "vitest", "run"]
+
 # === STAGE 3: Production Dependencies ===
 # Installa solo le dipendenze di produzione
 FROM node:24-alpine AS prod-deps

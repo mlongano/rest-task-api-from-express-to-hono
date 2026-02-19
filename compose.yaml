@@ -14,20 +14,20 @@ services:
       # Cache delle dipendenze per build più veloci
       args:
         - BUILDKIT_INLINE_CACHE=1
-    
+
     # Nome container esplicito (opzionale, utile per riferimenti)
     container_name: task-api
-    
+
     # === RESTART POLICY ===
     # 'unless-stopped': riavvia sempre tranne se fermato manualmente
     # Altre opzioni: 'no', 'always', 'on-failure'
     restart: unless-stopped
-    
+
     # === PORT MAPPING ===
     # Formato: "HOST:CONTAINER"
     ports:
       - "${PORT:-3000}:3000"
-    
+
     # === ENVIRONMENT ===
     # Le variabili vengono lette dal file .env automaticamente
     environment:
@@ -36,13 +36,13 @@ services:
       - HOST=0.0.0.0
       - DB_PATH=/app/data/tasks.db
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
-    
+
     # === VOLUMES ===
     volumes:
       # Volume nominato per persistenza database SQLite
       # I dati sopravvivono a 'docker compose down' (ma non a 'down -v')
       - sqlite_data:/app/data
-    
+
     # === HEALTHCHECK ===
     # Sovrascrive l'healthcheck del Dockerfile se necessario
     healthcheck:
@@ -51,7 +51,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    
+
     # === RESOURCE LIMITS ===
     # Limita le risorse per evitare che un container monopolizzi l'host
     deploy:
@@ -62,7 +62,7 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-    
+
     # === LOGGING ===
     # Configura il driver di logging e limita la dimensione dei log
     logging:
@@ -70,12 +70,12 @@ services:
       options:
         max-size: "10m"    # Ruota i log quando raggiungono 10MB
         max-file: "3"      # Mantiene massimo 3 file di log
-    
+
     # === SECURITY ===
     # Opzioni di sicurezza aggiuntive
     security_opt:
       - no-new-privileges:true    # Impedisce escalation di privilegi
-    
+
     # === DEVELOPMENT MODE ===
     # Configurazione per hot-reload durante lo sviluppo
     # Attivare con: docker compose watch
@@ -85,10 +85,26 @@ services:
         - action: sync
           path: ./src
           target: /app/src
-        
+
         # Rebuild se package.json cambia
         - action: rebuild
           path: ./package.json
+
+  # === TEST SERVICE ===
+  # Esegue i test Vitest in un container isolato con DB in-memory.
+  # Uso: docker compose run --rm test
+  # Uso: docker compose run --rm test -- --watch  (watch mode)
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: task-api-test
+    # Il profilo "test" evita che il servizio parta con 'docker compose up'
+    profiles:
+      - test
 
 # === VOLUMES DEFINITION ===
 volumes:
