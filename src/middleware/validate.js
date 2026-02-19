@@ -9,23 +9,23 @@ const { body, param, query, validationResult } = require('express-validator');
 
 /**
  * Middleware che controlla i risultati della validazione
- * Se ci sono errori, ritorna 400 Bad Request con i dettagli
+ * Se ci sono errori, passa al errorHandler tramite next(error)
  */
 function handleValidationErrors(req, res, next) {
   const errors = validationResult(req);
-  
+
   if (!errors.isEmpty()) {
-    return res.status(400).json({
-      error: 'Validation Error',
-      details: errors.array().map(err => ({
-        field: err.path,
-        message: err.msg,
-        value: err.value
-      })),
-      timestamp: new Date().toISOString()
-    });
+    const error = new Error('Validation failed');
+    error.statusCode = 400;
+    error.name = 'ValidationError';
+    error.details = errors.array().map(err => ({
+      field: err.path,
+      message: err.msg,
+      value: err.value
+    }));
+    return next(error);
   }
-  
+
   next();
 }
 

@@ -41,11 +41,11 @@ function errorHandler(err, req, res, next) {
     method: req.method
   });
 
-  // Errori di validazione da express-validator
-  if (err.array && typeof err.array === 'function') {
-    return res.status(400).json({
+  // Errori di validazione
+  if (err.name === 'ValidationError' && err.details) {
+    return res.status(err.statusCode || 400).json({
       error: 'Validation Error',
-      details: err.array(),
+      details: err.details,
       timestamp: new Date().toISOString()
     });
   }
