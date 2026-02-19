@@ -1,6 +1,6 @@
 # Task API
 
-REST API per la gestione di task, costruita con Node.js, Express e SQLite.
+REST API per la gestione di task, costruita con Node.js, Hono, TypeScript e SQLite.
 
 ## Quick Start
 
@@ -11,8 +11,11 @@ cd task-api
 # Crea il file di configurazione
 cp .env.example .env
 
-# Avvia con Docker Compose
-docker compose up -d
+# Installa le dipendenze
+npm install
+
+# Avvia il server in development
+npm run dev
 
 # Verifica che funzioni
 curl http://localhost:3000/health
@@ -25,11 +28,11 @@ L'API sarà disponibile su `http://localhost:3000`
 | Tecnologia | Scopo |
 |------------|-------|
 | **Node.js 20** | Runtime JavaScript |
-| **Express 4** | Framework web |
+| **Hono 4** | Framework web |
+| **TypeScript 5** | Type safety |
 | **better-sqlite3** | Database embedded |
-| **Helmet** | Security headers |
-| **express-validator** | Validazione input |
-| **Morgan** | HTTP logging |
+| **Zod** | Validazione schema e type inference |
+| **tsx** | Esecuzione TypeScript |
 
 ## Struttura Progetto
 
@@ -37,21 +40,24 @@ L'API sarà disponibile su `http://localhost:3000`
 task-api/
 ├── src/
 │   ├── config/
-│   │   └── database.js       # Setup SQLite
+│   │   └── database.ts       # Setup SQLite
 │   ├── controllers/
-│   │   └── taskController.js # Logica CRUD
+│   │   └── taskController.ts # Logica CRUD
 │   ├── middleware/
-│   │   ├── errorHandler.js   # Gestione errori
-│   │   └── validate.js       # Validazione input
+│   │   ├── errorHandler.ts   # Gestione errori
+│   │   └── validate.ts       # Validazione input con Zod
 │   ├── routes/
-│   │   └── taskRoutes.js     # Endpoint REST
-│   └── app.js                # Entry point
+│   │   └── taskRoutes.ts     # Endpoint REST
+│   ├── types/
+│   │   └── index.ts          # Definizioni di tipo centralizzate
+│   └── app.ts                # Entry point
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── compose.yaml
 ├── Dockerfile
 ├── package.json
+├── tsconfig.json
 └── README.md
 ```
 
@@ -67,31 +73,31 @@ Il progetto segue un'architettura a layer per mantenere la separazione delle res
 └──────────────────┬──────────────────────┘
                    │
 ┌──────────────────▼──────────────────────┐
-│        app.js (Entry Point)             │
-│  - Middleware globali (Helmet, CORS,    │
-│    Morgan, body parser)                 │
-│  - Route registration                   │
-│  - Graceful shutdown                    │
+│        app.ts (Entry Point)             │
+│  - Middleware globali (secureHeaders,   │
+│    CORS, logger, prettyJSON)            │
+│  - Route registration                  │
+│  - Graceful shutdown                   │
 └──────────────────┬──────────────────────┘
                    │
         ┌──────────┴──────────┐
         │                     │
 ┌───────▼────────┐   ┌────────▼────────┐
-│  taskRoutes.js │   │   /health       │
-│  (Route Layer) │   │   Endpoints     │
+│ taskRoutes.ts  │   │   /health       │
+│ (Route Layer)  │   │   Endpoints     │
 └───────┬────────┘   └─────────────────┘
         │
 ┌───────▼────────────────────────────────┐
 │      Middleware Pipeline               │
 │  1. Validation Middleware              │
-│     (validate.js)                      │
-│  2. Controller Functions               │
-│     (taskController.js)                │
+│     (validate.ts + Zod)               │
+│  2. Controller Functions              │
+│     (taskController.ts)               │
 └───────┬────────────────────────────────┘
         │
 ┌───────▼────────────────────────────────┐
 │      Data Layer                        │
-│  - Database configuration              │
+│  - Configurazione database             │
 │  - SQL prepared statements             │
 │  - Schema migrations                   │
 └────────────────────────────────────────┘
@@ -99,65 +105,72 @@ Il progetto segue un'architettura a layer per mantenere la separazione delle res
 
 ### Request Flow
 
-1. **Ingresso Richiesta**: La richiesta HTTP arriva al server Express
+1. **Ingresso Richiesta**: La richiesta HTTP arriva al server Hono
 2. **Global Middleware**:
-   - Helmet aggiunge security headers
+   - `secureHeaders` aggiunge security headers
    - CORS valida origini cross-origin
-   - Morgan logga la richiesta
-   - Body parser parsifica JSON
-3. **Routing**: Express mappa l'URL al router appropriato
-4. **Validation**: `express-validator` valida input (body, params, query)
+   - `logger` logga la richiesta
+   - `prettyJSON` formatta le risposte JSON
+3. **Routing**: Hono mappa l'URL al router appropriato
+4. **Validation**: Zod valida input (body, params, query) con type inference
 5. **Controller**: La funzione controller esegue la logica business
 6. **Database**: Il controller interagisce con SQLite via `better-sqlite3`
-7. **Response**: Il controller invia la risposta JSON al client
-8. **Error Handling**: Se qualcosa va storto, l'errore viene propagato al `errorHandler`
+7. **Response**: Il controller invia la risposta JSON tipizzata al client
+8. **Error Handling**: Se qualcosa va storto, l'errore viene propagato all'`errorHandler`
 
 ### Componenti Chiave
 
-#### app.js - Application Bootstrap
+#### app.ts - Application Bootstrap
 
-- Configura middleware globali
+- Configura middleware globali (secureHeaders, CORS, logger, prettyJSON)
 - Registra le route
 - Gestisce il lifecycle del server (startup, shutdown)
 - Implementa graceful shutdown per sicurezza
 - Health check endpoint per monitoring
 
-#### taskRoutes.js - Route Definitions
+#### taskRoutes.ts - Route Definitions
 
 - Definisce tutti gli endpoint REST
-- Collega validazione middleware ai controller
+- Collega validazione Zod middleware ai controller
 - Organizza route per risorsa (tasks)
 - Segue convenzioni RESTful standard
 
-#### validate.js - Input Validation Layer
+#### validate.ts - Input Validation Layer
 
-- Middleware di validazione dichiarativa con `express-validator`
-- Regole separate per ogni endpoint
-- Centralizzato e riutilizzabile
-- Ritorna errori dettagliati con field specifici
+- Schemi Zod dichiarativi con type inference automatica
+- Regole separate per ogni endpoint (`createTaskSchema`, `updateTaskSchema`, ecc.)
+- Middleware generici riutilizzabili (`validateBody`, `validateParams`, `validateQuery`)
+- Ritorna errori dettagliati con field specifici e timestamp
 
-#### taskController.js - Business Logic Layer
+#### taskController.ts - Business Logic Layer
 
 - Contiene tutta la logica di business
-- Gestisce CRUD operations
+- Gestisce CRUD operations con tipi TypeScript
 - Implementa paginazione e filtri
 - Non contiene logica di routing
-- Delega errori al centralized error handler
+- Risposte tipizzate con generic (`ApiResponse<T>`, `ApiMessageResponse<T>`)
 
-#### database.js - Data Access Layer
+#### database.ts - Data Access Layer
 
 - Configurazione SQLite con `better-sqlite3`
 - Synchronous API (non async) per semplicità
 - Setup iniziale schema e triggers
-- Gestisce connection pooling
 - Abilita WAL mode per performance
 
-#### errorHandler.js - Error Handling Layer
+#### errorHandler.ts - Error Handling Layer
 
 - Centralizza gestione errori
 - Gestisce diversi tipi di errori (HTTP, SQLite, Validation)
 - Nasconde stack trace in produzione
-- Formatta risposte di errore consistenti
+- Formatta risposte di errore consistenti con `ApiErrorResponse`
+
+#### types/index.ts - Type Definitions
+
+- Definizioni centrali di tutti i tipi del dominio
+- `type` per unions/primitive (`Priority`)
+- `interface` per oggetti (`Task`, `ApiResponse<T>`)
+- Tipi per input validati (`CreateTaskInput`, `UpdateTaskInput`, `PatchTaskInput`)
+- Tipi per paginazione e risposte errore
 
 ### Data Model
 
@@ -184,28 +197,208 @@ CREATE TABLE tasks (
 
 ### Security Architecture
 
-1. **Input Validation**: Tutti gli input validati prima del processing
+1. **Input Validation**: Tutti gli input validati con Zod prima del processing
 2. **SQL Injection Prevention**: Prepared statements per tutte le query
-3. **HTTP Headers**: Helmet per security headers (XSS, CSP, etc.)
+3. **HTTP Headers**: `secureHeaders` di Hono per security headers (XSS, CSP, etc.)
 4. **CORS**: Configurabile per controllo origini
-5. **Body Size Limit**: 10KB limit per mitigare DoS
-6. **Non-root Container**: Docker container eseguito come utente non-root
+5. **Non-root Container**: Docker container eseguito come utente non-root
 
 ### Performance Considerations
 
 - **WAL Mode**: SQLite Write-Ahead Logging per concorrenza
 - **Prepared Statements**: Query caching per performance
 - **Synchronous Database**: better-sqlite3 più veloce di sqlite3 async
-- **Connection Reuse**: Singola connessione database riutilizzata
+- **Hono**: ~14x più leggero di Express, performance superiori
 - **Pagination**: Supporto nativo per query paginate
 
 ### Scalabilità e Manutenibilità
 
 - **Separation of Concerns**: Ogni layer ha responsabilità chiara
 - **Middleware Chain**: Facile aggiungere nuovo middleware
-- **Validation Reuse**: Regole centralizzate e riutilizzabili
+- **Type Safety**: TypeScript garantisce coerenza e facilita il refactoring
+- **Validation Reuse**: Schemi Zod centralizzati e riutilizzabili
 - **Error Centralization**: Un solo punto di gestione errori
 - **Environment-based**: Configurazione via environment variables
+
+## Refactoring da Express a Hono (v2.0.0)
+
+Questo progetto è stato migrato da Express/JavaScript a Hono/TypeScript. Ecco cosa è cambiato e perché:
+
+### Cambiamenti Tecnologici
+
+| Prima | Dopo | Motivazione |
+|-------|------|-------------|
+| Express 4 | Hono 4 | Più leggero, più veloce, migliore supporto TypeScript |
+| JavaScript | TypeScript | Type safety, migliore supporto IDE, meno errori a runtime |
+| express-validator | Zod | Type inference, definizioni schema più pulite |
+| Morgan | Hono logger | Built-in, nessuna dipendenza aggiuntiva |
+| Helmet | Hono secureHeaders | Middleware built-in |
+
+### Benefici del Refactoring
+
+#### Type Safety
+
+- Rilevamento errori a compile-time
+- Autocomplete e IntelliSense
+- Refactoring con confidenza
+- Codice auto-documentante tramite i tipi
+
+#### Framework Moderno
+
+- Hono è ~14x più piccolo di Express
+- Supporto TypeScript first-class
+- Middleware built-in (niente pacchetti helmet/cors separati)
+- Funziona su qualsiasi runtime JavaScript (Node, Bun, Deno, Cloudflare Workers)
+
+#### Migliore Validazione
+
+- Gli schemi Zod forniscono sia validazione runtime che type inference
+- Singola fonte di verità per tipi e regole di validazione
+- Messaggi di errore più chiari
+
+### Cambiamenti Chiave nel Codice
+
+#### Entry Point (app.ts)
+
+```typescript
+// Prima: Express
+const express = require('express');
+const helmet = require('helmet');
+const app = express();
+app.use(helmet());
+
+// Dopo: Hono
+import { Hono } from 'hono';
+import { secureHeaders } from 'hono/secure-headers';
+const app = new Hono();
+app.use('*', secureHeaders());
+```
+
+#### Route (taskRoutes.ts)
+
+```typescript
+// Prima: Express Router
+const express = require('express');
+const router = express.Router();
+router.get('/', taskController.getAllTasks);
+
+// Dopo: Hono
+import { Hono } from 'hono';
+const tasks = new Hono();
+tasks.get('/', validateQuery(listQuerySchema), getAllTasks);
+```
+
+#### Validazione (validate.ts)
+
+```typescript
+// Prima: array express-validator
+const createTaskValidation = [
+  body('title').trim().notEmpty(),
+  body('priority').optional().isIn(['low', 'medium', 'high']),
+  handleValidationErrors
+];
+
+// Dopo: schemi Zod con type inference
+export const createTaskSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  priority: PrioritySchema.optional().default('medium')
+});
+
+// Il tipo viene inferito automaticamente
+type CreateTaskInput = z.infer<typeof createTaskSchema>;
+```
+
+#### Controller (taskController.ts)
+
+```typescript
+// Prima: Express con req/res/next
+function createTask(req, res, next) {
+  try {
+    const { title } = req.body;
+    // ...
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Dopo: Hono Context con validazione tipizzata
+function createTask(c: Context) {
+  const input = c.get('validatedBody') as CreateTaskInput;
+  // TypeScript sa che input.title è una stringa
+  return c.json<ApiMessageResponse<Task>>({ ... }, 201);
+}
+```
+
+#### Tipi (types/index.ts)
+
+```typescript
+// Nuovo file: definizioni di tipo centralizzate
+export type Priority = 'low' | 'medium' | 'high';
+
+export interface Task {
+  id: number;
+  title: string;
+  description: string | null;
+  completed: number;
+  priority: Priority;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+}
+```
+
+### Cambiamenti nella Struttura
+
+```shell
+# Prima (JavaScript)
+src/
+├── app.js
+├── config/database.js
+├── controllers/taskController.js
+├── middleware/
+│   ├── errorHandler.js
+│   └── validate.js
+└── routes/taskRoutes.js
+
+# Dopo (TypeScript)
+src/
+├── app.ts
+├── config/database.ts
+├── controllers/taskController.ts
+├── middleware/
+│   ├── errorHandler.ts
+│   └── validate.ts
+├── routes/taskRoutes.ts
+└── types/index.ts          # NUOVO: Definizioni di tipo centralizzate
+```
+
+### Script npm
+
+```bash
+# Sviluppo
+npm run dev          # Avvia con hot-reload (tsx watch)
+npm start            # Produzione (richiede build)
+
+# Build
+npm run build        # Compila TypeScript in dist/
+
+# Qualità
+npm run typecheck    # Type check senza emissione
+npm run lint         # Esegue ESLint
+npm run lint:fix     # Auto-fix problemi di linting
+```
+
+### Guida alla Migrazione
+
+Se hai codice v1.x esistente, ecco come migrare:
+
+1. **Aggiorna dipendenze**: `npm install` scaricherà i nuovi pacchetti
+2. **Database compatibile**: Schema SQLite invariato, i dati persistono
+3. **API compatibile**: Tutti gli endpoint funzionano in modo identico
+4. **Nuovi tipi**: Importare da `src/types/index.ts` se si estende il progetto
 
 ## API Endpoints
 
@@ -222,7 +415,7 @@ Risposta:
   "status": "healthy",
   "timestamp": "2024-01-15T10:30:00.000Z",
   "uptime": 3600.5,
-  "environment": "production"
+  "environment": "development"
 }
 ```
 
@@ -330,7 +523,7 @@ DELETE /tasks/:id
 
 Risposta: `204 No Content`
 
-## Comandi Docker
+## Docker
 
 ```bash
 # Avvio in background
@@ -382,19 +575,18 @@ npm start
 
 ### Sicurezza
 
-- ✅ Helmet per HTTP security headers
+- ✅ `secureHeaders` di Hono per HTTP security headers
 - ✅ CORS configurabile
-- ✅ Validazione input con express-validator
+- ✅ Validazione input con Zod e type inference
 - ✅ Container non-root
-- ✅ Limiti su dimensione request body
-- ✅ No-new-privileges in Docker
+- ✅ Prepared statements per prevenire SQL injection
 
 ### Performance
 
 - ✅ Multi-stage Docker build
 - ✅ SQLite WAL mode per concorrenza
 - ✅ Layer caching ottimizzato nel Dockerfile
-- ✅ Limiti risorse nel Compose
+- ✅ Hono ~14x più leggero di Express
 
 ### Affidabilità
 
@@ -402,11 +594,12 @@ npm start
 - ✅ Health checks
 - ✅ Gestione errori centralizzata
 - ✅ Logging strutturato
-- ✅ Restart policy
 
 ### Developer Experience
 
-- ✅ Hot-reload con Docker Compose Watch
+- ✅ Hot-reload con tsx watch
+- ✅ Supporto TypeScript completo
+- ✅ Type safety end-to-end con Zod
 - ✅ Variabili d'ambiente con .env
 - ✅ Codice organizzato per responsabilità
 
@@ -416,7 +609,7 @@ npm start
 # Crea un task
 curl -X POST http://localhost:3000/tasks \
   -H "Content-Type: application/json" \
-  -d '{"title": "Imparare Docker", "priority": "high"}'
+  -d '{"title": "Imparare TypeScript", "priority": "high"}'
 
 # Lista tutti i task
 curl http://localhost:3000/tasks
