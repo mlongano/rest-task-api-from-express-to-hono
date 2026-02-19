@@ -1,0 +1,63 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOCKERIGNORE
+#
+# File e directory da escludere dal contesto di build Docker.
+# Riduce la dimensione del contesto e velocizza la build.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# === Dependencies ===
+# Le dipendenze vengono installate fresh nel container
+node_modules
+npm-debug.log
+
+# === Environment & Secrets ===
+# Mai includere secrets nell'immagine
+.env
+.env.*
+!.env.example
+
+# === Git ===
+.git
+.gitignore
+
+# === IDE & Editor ===
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+
+# === Documentation ===
+README.md
+docs/
+*.md
+
+# === Testing ===
+coverage/
+.nyc_output
+*.test.js
+*.spec.js
+__tests__
+
+# === Build artifacts ===
+dist/
+build/
+*.log
+
+# === Docker ===
+# Non includere configurazioni Docker nell'immagine
+Dockerfile*
+docker-compose*
+compose.yaml
+.dockerignore
+
+# === Database files ===
+# Il database viene creato nel volume, non nell'immagine
+*.db
+*.sqlite
+*.sqlite3
+data/

@@ -1,0 +1,45 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# GITIGNORE - Task API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# === Dependencies ===
+node_modules/
+
+# === Environment & Secrets ===
+.env
+.env.local
+.env.*.local
+
+# === Database ===
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+
+# === Testing ===
+coverage/
+.nyc_output/
+
+# === Build ===
+dist/
+build/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Temporary ===
+tmp/
+temp/
