@@ -70,8 +70,10 @@ Content-Type: {{contentType}}
 
 {
   "title": "Test Task",
-  "description": "This is a very long description that exceeds the maximum allowed length of 1000 characters. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. This is additional text to make sure it exceeds 1000 characters. More text here. And even more text here to ensure we go over the limit of 1000 characters in the description field."
+  "description": "This is a very long description that exceeds the maximum allowed length of 1000 characters. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. This is additional text to make sure it exceeds 1000 characters. More text here. And even more text ere to ensure we go over the limit of 1000 characters in the description field. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 }
+
+?? status == 400
 
 ### Create task - Valid minimal (only title)
 POST {{baseUrl}}/tasks
@@ -109,18 +111,30 @@ GET {{baseUrl}}/tasks?limit=5&offset=0
 ### Get tasks - Invalid completed filter (validation error)
 GET {{baseUrl}}/tasks?completed=invalid
 
+
+?? status == 400
+
 ### Get tasks - Invalid priority filter (validation error)
 GET {{baseUrl}}/tasks?priority=invalid
+
+
+?? status == 400
 
 ### Get tasks - Invalid limit (validation error)
 GET {{baseUrl}}/tasks?limit=0
 
+
+?? status == 400
+
 ### Get tasks - Limit too high (validation error)
 GET {{baseUrl}}/tasks?limit=101
+
+?? status == 400
 
 ### Get tasks - Invalid offset (validation error)
 GET {{baseUrl}}/tasks?offset=-1
 
+?? status == 400
 ### Get tasks - Combined filters
 GET {{baseUrl}}/tasks?completed=false&priority=high&limit=10&offset=0
 
@@ -135,11 +149,16 @@ GET {{baseUrl}}/tasks/1
 ### Get task by ID - Invalid ID format (validation error)
 GET {{baseUrl}}/tasks/abc
 
+?? status == 400
+
 ### Get task by ID - Negative ID (validation error)
 GET {{baseUrl}}/tasks/-1
 
+?? status == 400
 ### Get task by ID - Not found (404 error)
 GET {{baseUrl}}/tasks/99999
+
+?? status == 404
 
 # ============================================================
 # UPDATE TASK - PUT /tasks/:id (Full Update)
@@ -156,6 +175,8 @@ Content-Type: {{contentType}}
   "priority": "medium"
 }
 
+?? status == 201
+
 ### Update task - Missing title (validation error)
 PUT {{baseUrl}}/tasks/1
 Content-Type: {{contentType}}
@@ -165,6 +186,9 @@ Content-Type: {{contentType}}
   "completed": true,
   "priority": "medium"
 }
+
+
+?? status == 400
 
 ### Update task - Missing completed (validation error)
 PUT {{baseUrl}}/tasks/1
@@ -176,6 +200,8 @@ Content-Type: {{contentType}}
   "priority": "medium"
 }
 
+?? status == 400
+
 ### Update task - Missing priority (validation error)
 PUT {{baseUrl}}/tasks/1
 Content-Type: {{contentType}}
@@ -185,6 +211,8 @@ Content-Type: {{contentType}}
   "description": "Updated description",
   "completed": true
 }
+
+?? status == 400
 
 ### Update task - Invalid ID (validation error)
 PUT {{baseUrl}}/tasks/abc
@@ -197,6 +225,8 @@ Content-Type: {{contentType}}
   "priority": "medium"
 }
 
+?? status == 400
+
 ### Update task - Task not found (404 error)
 PUT {{baseUrl}}/tasks/99999
 Content-Type: {{contentType}}
@@ -208,6 +238,7 @@ Content-Type: {{contentType}}
   "priority": "medium"
 }
 
+?? status == 404
 # ============================================================
 # PATCH TASK - PATCH /tasks/:id (Partial Update)
 # ============================================================
@@ -252,6 +283,8 @@ Content-Type: {{contentType}}
   "title": "Patched Task"
 }
 
+?? status == 400
+
 ### Patch task - Invalid priority (validation error)
 PATCH {{baseUrl}}/tasks/1
 Content-Type: {{contentType}}
@@ -259,6 +292,8 @@ Content-Type: {{contentType}}
 {
   "priority": "urgent"
 }
+
+?? status == 400
 
 ### Patch task - Invalid completed type (validation error)
 PATCH {{baseUrl}}/tasks/1
@@ -268,6 +303,8 @@ Content-Type: {{contentType}}
   "completed": "yes"
 }
 
+?? status == 400
+
 ### Patch task - Empty title (validation error)
 PATCH {{baseUrl}}/tasks/1
 Content-Type: {{contentType}}
@@ -275,6 +312,8 @@ Content-Type: {{contentType}}
 {
   "title": ""
 }
+
+?? status == 400
 
 ### Patch task - Task not found (404 error)
 PATCH {{baseUrl}}/tasks/99999
@@ -284,6 +323,7 @@ Content-Type: {{contentType}}
   "title": "Patched Task"
 }
 
+?? status == 404
 # ============================================================
 # DELETE TASK - DELETE /tasks/:id
 # ============================================================
@@ -291,9 +331,11 @@ Content-Type: {{contentType}}
 ### Delete task - Invalid ID (validation error)
 DELETE {{baseUrl}}/tasks/abc
 
+?? status == 400
 ### Delete task - Task not found (404 error)
 DELETE {{baseUrl}}/tasks/99999
 
+?? status == 404
 ### Delete task - Success
 # Run this last to clean up
 DELETE {{baseUrl}}/tasks/1
